@@ -57,4 +57,27 @@ object Game {
     val res: Boolean = capturedIsEnemy && board.contains(coordTo)
     res
   }
+
+  def playRandomly(board: Board, r: MyRandom, player: Stone, lstOpenCoords: List[Coord2D], f: (List[Coord2D], MyRandom) => (Coord2D, MyRandom)): (Option[Board], MyRandom, List[Coord2D], Option[Coord2D]) = {
+    val (coordTo,newRandom) = f(lstOpenCoords, r)
+    findPieceForMove(board, player, coordTo, lstOpenCoords) match {
+      case Some(coordFrom) =>
+        val (newBoard, newLstOpenCoords) = play(board, player, coordFrom, coordTo, lstOpenCoords)
+        (newBoard, newRandom, newLstOpenCoords, Some(coordTo))
+      case None => playRandomly(board, newRandom, player, lstOpenCoords, f)  
+    }
+  }
+
+  def findPieceForMove(board: Board, player: Stone, coordTo: Coord2D, lstOpenCoords: List[Coord2D]): Option[Coord2D] = {
+    val possibleFroms = List(
+      (coordTo._1 - 2, coordTo._2),
+      (coordTo._1 + 2, coordTo._2),
+      (coordTo._1, coordTo._2 - 2),
+      (coordTo._1, coordTo._2 + 2)
+    )
+    possibleFroms.find(from =>
+      board.get(from).contains(player) && validMove(board, player, from, coordTo, lstOpenCoords)
+    )
+
+  }  
 }
