@@ -2,6 +2,22 @@ import Types.{Board, Coord2D, Stone}
 
 import scala.collection.parallel.immutable.ParMap
 
+case class Game(board: Board, lstOpenCoords: List[Coord2D], player: Stone, rows: Int, cols: Int) {
+
+  def randomMove(rand: MyRandom): (Coord2D, MyRandom) = {
+    Game.randomMove(this.lstOpenCoords, rand)
+  }
+
+  def play(coordFrom: Coord2D, coordTo: Coord2D,
+           lstOpenCoords: List[Coord2D]): (Option[Board], List[Coord2D]) = {
+    Game.play(this.board, this.player, coordFrom, coordTo, this.lstOpenCoords)
+  }
+
+  def playRandomly(r: MyRandom): (Option[Board], MyRandom, List[Coord2D], Option[Coord2D]) = {
+    Game.playRandomly(this.board, r, this.player, this.lstOpenCoords, Game.randomMove)
+  }
+}
+
 object Game {
 
   def initBoard(rows: Int, cols: Int): (Board, List[Coord2D]) = {
@@ -54,8 +70,22 @@ object Game {
       case None =>
         false
     }
-    val res: Boolean = capturedIsEnemy && board.contains(coordTo)
+    val res: Boolean = capturedIsEnemy && lstOpenCoords.contains(coordTo) && board.get(coordFrom).contains(player)
     res
+  }
+
+
+  def validMoveExists(board: Board, player: Stone, coordFrom: Coord2D, lstOpenCoords: List[Coord2D]): Boolean = {
+    val (r, c) = coordFrom
+    val possibleDestinations = List((r - 2, c), (r + 2, c), (r, c - 2), (r, c + 2))
+    possibleDestinations.exists(coordTo => validMove(board, player, coordFrom, coordTo, lstOpenCoords))
+  }
+
+  def hasValidMoves(board: Board, player: Stone, lstOpenCoords: List[Coord2D]): Boolean = {
+    // Percorre todas as peças do jogador e verifica se alguma tem jogada válida
+    board.exists { case (coord, stone) =>
+      stone == player && validMoveExists(board, player, coord, lstOpenCoords)
+    }
   }
 
   def playRandomly(board: Board, r: MyRandom, player: Stone, lstOpenCoords: List[Coord2D], f: (List[Coord2D], MyRandom) => (Coord2D, MyRandom)): (Option[Board], MyRandom, List[Coord2D], Option[Coord2D]) = {
