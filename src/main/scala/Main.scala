@@ -12,16 +12,16 @@ object Main {
 
     val (rows, cols, limitSeconds, difficulty) = TUI.mainMenu()
     val (board, lstOpenCoords) = Game.initBoard(rows, cols)
-    val initialGame = Game(board, lstOpenCoords, Black, rows, cols)
+    val initialGame = Game(board, lstOpenCoords, Black, rows, cols, difficulty)
     val rand = MyRandom.create()
     val history = Nil
 
     TUI.printGameState(initialGame)
-    gameLoop(initialGame, rand, history, limitSeconds)
+    gameLoop(initialGame, rand, history, limitSeconds, difficulty)
   }
 
   @tailrec
-  def gameLoop(game: Game, rand: MyRandom, history: List[Game], limitSeconds: Long): Unit = {
+  def gameLoop(game: Game, rand: MyRandom, history: List[Game], limitSeconds: Long, difficulty: Integer): Unit = {
 
     if (!Game.hasValidMoves(game.board, game.player, game.lstOpenCoords)) {
       val vencedor = if (game.player == Black) "O computador (Brancas) ganhou!" else "Tu (Pretas) ganhaste!"
@@ -39,19 +39,19 @@ object Main {
 
           opcao match {
             case "1" =>
-              handleHumanMove(game, rand, history, limitSeconds)
+              handleHumanMove(game, rand, history, limitSeconds, difficulty)
 
             case "2" =>
               println("A jogar aleatoriamente...")
-              val (optBoard, nextRand, nextOpen, optCoord) =
-                Game.playRandomly(game.board, rand, game.player, game.lstOpenCoords, Game.randomMove)
+              val (optBoard, nextRand, nextOpen, optCoordFrom, optCoordTo) =
+                Game.playRandomly(game.board, rand, game.player, game.lstOpenCoords, difficulty, Game.randomMove)
 
               optBoard match {
                 case Some(newBoard) =>
-                  println(s"Jogaste para: ${coordToStr(optCoord.get)}")
-                  val nextGame = Game(newBoard, nextOpen, White, game.rows, game.cols)
+                  println(s"Jogaste para: ${coordToStr(optCoordTo.get)}")
+                  val nextGame = Game(newBoard, nextOpen, White, game.rows, game.cols, difficulty)
                   TUI.printGameState(nextGame)
-                  gameLoop(nextGame, nextRand, game :: history, limitSeconds)
+                  gameLoop(nextGame, nextRand, game :: history, limitSeconds, difficulty)
                 case None =>
                   println("\n=== Não existem mais movimentos! O computador (Brancas) ganhou! ===")
               }
@@ -60,39 +60,49 @@ object Main {
               history match {
                 case Nil =>
                   println("Não há mais jogadas para anular!")
-                  gameLoop(game, rand, history, limitSeconds)
+                  gameLoop(game, rand, history, limitSeconds, difficulty)
                 case previousState :: olderHistory =>
                   println("Undo realizado com sucesso!")
                   TUI.printGameState(previousState)
-                  gameLoop(previousState, rand, olderHistory, limitSeconds)
+                  gameLoop(previousState, rand, olderHistory, limitSeconds, difficulty)
               }
 
             case "4" =>
               val (rows, cols, limitSeconds, difficulty) = TUI.mainMenu()
               val (board, lstOpenCoords) = Game.initBoard(rows, cols)
-              val initialGame = Game(board, lstOpenCoords, Black, rows, cols)
+              val initialGame = Game(board, lstOpenCoords, Black, rows, cols, difficulty)
               val rand = MyRandom.create()
               val history = Nil
 
               TUI.printGameState(initialGame)
-              gameLoop(initialGame, rand, history, limitSeconds)
+              gameLoop(initialGame, rand, history, limitSeconds, difficulty)
 
             case _ =>
               println("Opção inválida, tenta novamente.")
-              gameLoop(game, rand, history, limitSeconds)
+              gameLoop(game, rand, history, limitSeconds, difficulty)
           }
 
         case White =>
-          println("Vez do computador (Brancas)...")
-          val (optBoard, nextRand, nextOpen, optCoord) =
-            Game.playRandomly(game.board, rand, game.player, game.lstOpenCoords, Game.randomMove)
+          println("\nVez do computador (Brancas)...")
+
+          val (optBoard, nextOpen, optCoordFrom, optCoordTo, nextRand) = if (difficulty == 2) {
+            val (newBoard, newOpenList, coordFrom, coordTo) = Game.playMaxJumps(game.board, game.player, game.lstOpenCoords)
+            (newBoard, newOpenList, coordFrom, coordTo, rand)
+          } else {
+            val (newBoard, r, newOpenList, coordFrom, coordTo) = Game.playRandomly(game.board, rand, game.player, game.lstOpenCoords, difficulty, Game.randomMove)
+            (newBoard, newOpenList, coordFrom, coordTo, r)
+          }
 
           optBoard match {
             case Some(newBoard) =>
-              println(s"O computador jogou para: ${coordToStr(optCoord.get)}")
-              val nextGame = Game(newBoard, nextOpen, Black, game.rows, game.cols)
+              println(s"O computador jogou para: ${coordToStr(optCoordTo.get)}")
+
+              val (finalBoard, finalOpen, _) = Game.play(newBoard, White, optCoordFrom.get, optCoordTo.get, nextOpen)
+
+              val nextGame = Game(finalBoard.get, finalOpen, Black, game.rows, game.cols, difficulty)
               TUI.printGameState(nextGame)
-              gameLoop(nextGame, nextRand, history, limitSeconds)
+              gameLoop(nextGame, nextRand, history, limitSeconds, difficulty)
+
             case None =>
               println("\n=== Não existem mais movimentos! Tu (Pretas) ganhaste! ===")
           }
@@ -101,7 +111,7 @@ object Main {
   }
 
   @tailrec
-  def handleHumanMove(game: Game, rand: MyRandom, history: List[Game], limitSeconds: Long): Unit = {
+  def handleHumanMove(game: Game, rand: MyRandom, history: List[Game], limitSeconds: Long, difficulty: Integer): Unit = {
     println(s"Tens $limitSeconds segundos para jogar!")
     val startTime = System.currentTimeMillis()
 
@@ -113,18 +123,18 @@ object Main {
 
     if (elapsedSeconds > limitSeconds) {
       println(s"Tempo esgotado! Demoraste $elapsedSeconds segundos.")
-      gameLoop(game.copy(player = White), rand, history, limitSeconds)
+      gameLoop(game.copy(player = White), rand, history, limitSeconds, difficulty)
     } else {
       parseCoord(input, game.rows, game.cols) match {
         case None =>
           println("Coordenada inválida. Tenta novamente.")
-          handleHumanMove(game, rand, history, limitSeconds)
+          handleHumanMove(game, rand, history, limitSeconds, difficulty)
 
         case Some(coordTo) =>
           Game.findPieceForMove(game.board, game.player, coordTo, game.lstOpenCoords) match {
             case None =>
               println(s"Não existe nenhuma peça tua que possa mover para ${coordToStr(coordTo)}.")
-              handleHumanMove(game, rand, history, limitSeconds)
+              handleHumanMove(game, rand, history, limitSeconds, difficulty)
 
             case Some(coordFrom) =>
               val (optBoard, newOpen, _) = Game.play(game.board, game.player, coordFrom, coordTo, game.lstOpenCoords)
@@ -133,18 +143,18 @@ object Main {
                   println(s"Moveste de ${coordToStr(coordFrom)} para ${coordToStr(coordTo)}.")
 
                   if (Game.validMoveExists(newBoard, game.player, coordTo, newOpen)) {
-                    val nextGame = Game(newBoard, newOpen, game.player, game.rows, game.cols)
+                    val nextGame = Game(newBoard, newOpen, game.player, game.rows, game.cols, difficulty)
                     TUI.printGameState(nextGame)
-                    handleMultiJump(nextGame, rand, game :: history, coordTo, limitSeconds)
+                    handleMultiJump(nextGame, rand, game :: history, coordTo, limitSeconds, difficulty)
                   } else {
-                    val nextGame = Game(newBoard, newOpen, White, game.rows, game.cols)
+                    val nextGame = Game(newBoard, newOpen, White, game.rows, game.cols, difficulty)
                     TUI.printGameState(nextGame)
-                    gameLoop(nextGame, rand, game :: history, limitSeconds)
+                    gameLoop(nextGame, rand, game :: history, limitSeconds, difficulty)
                   }
 
                 case None =>
                   println("Jogada inválida. Tenta novamente.")
-                  handleHumanMove(game, rand, history, limitSeconds)
+                  handleHumanMove(game, rand, history, limitSeconds, difficulty)
               }
           }
       }
@@ -152,7 +162,7 @@ object Main {
   }
 
   @tailrec
-  def handleMultiJump(game: Game, rand: MyRandom, history: List[Game], pieceCoord: Coord2D, limitSeconds: Long): Unit = {
+  def handleMultiJump(game: Game, rand: MyRandom, history: List[Game], pieceCoord: Coord2D, limitSeconds: Long, difficulty: Integer): Unit = {
     println(s"A peça em ${coordToStr(pieceCoord)} pode continuar a saltar!")
     println("Opções: 1 - Continuar a saltar | 2 - Parar captura (Passar vez)")
 
@@ -160,7 +170,7 @@ object Main {
 
     opcao match {
       case "2" =>
-        gameLoop(game.copy(player = White), rand, history, limitSeconds)
+        gameLoop(game.copy(player = White), rand, history, limitSeconds, difficulty)
 
       case "1" =>
         println(s"Introduz o próximo destino para a peça em ${coordToStr(pieceCoord)}:")
@@ -174,23 +184,23 @@ object Main {
             println(s"Saltaste para ${coordToStr(newDest)}.")
 
             if (Game.validMoveExists(nextBoard, game.player, newDest, newOpen)) {
-              val nextGame = Game(nextBoard, newOpen, game.player, game.rows, game.cols)
+              val nextGame = Game(nextBoard, newOpen, game.player, game.rows, game.cols, difficulty)
               TUI.printGameState(nextGame)
-              handleMultiJump(nextGame, rand, history, newDest, limitSeconds)
+              handleMultiJump(nextGame, rand, history, newDest, limitSeconds, difficulty)
             } else {
               println("Não há mais saltos possíveis.")
-              val nextGame = Game(nextBoard, newOpen, White, game.rows, game.cols)
+              val nextGame = Game(nextBoard, newOpen, White, game.rows, game.cols, difficulty)
               TUI.printGameState(nextGame)
-              gameLoop(nextGame, rand, history, limitSeconds)
+              gameLoop(nextGame, rand, history, limitSeconds, difficulty)
             }
 
           case _ =>
             println("Destino inválido ou salto impossível com esta peça. Tenta novamente.")
-            handleMultiJump(game, rand, history, pieceCoord, limitSeconds)
+            handleMultiJump(game, rand, history, pieceCoord, limitSeconds, difficulty)
         }
 
       case _ =>
-        handleMultiJump(game, rand, history, pieceCoord, limitSeconds)
+        handleMultiJump(game, rand, history, pieceCoord, limitSeconds, difficulty)
     }
   }
   // Converte "B3" -> (2, 1)  (row=dígito, col=letra)

@@ -11,7 +11,7 @@ object FileHandler {
     val pw = new PrintWriter(new File(file))
 
     // 1. Metadados: Linhas, Colunas, Jogador Atual
-    pw.println(s"META:${gameState.rows}:${gameState.cols}:${gameState.player}")
+    pw.println(s"META:${gameState.rows}:${gameState.cols}:${gameState.player}:${gameState.difficulty}")
 
     // 2. Gravar o Board (Peças) usando o ciclo for permitido
     for {
@@ -37,6 +37,7 @@ object FileHandler {
     // Variáveis temporárias para reconstruir o estado
     var rows = 0
     var cols = 0
+    var difficulty = 0
     var player: Stone = Black
     var board = Map[Coord2D, Stone]()
     var openCoords = List[Coord2D]()
@@ -49,6 +50,7 @@ object FileHandler {
           rows = parts(1).toInt
           cols = parts(2).toInt
           player = if (parts(3) == "Black") Black else White
+          difficulty = parts(4).toInt
 
         case "PIECE" =>
           val r = parts(1).toInt
@@ -67,6 +69,6 @@ object FileHandler {
 
     val boardPar = ParMap(board.toSeq: _*)
 
-    Game(boardPar, openCoords, player, rows, cols)
+    Game(boardPar, openCoords, player, rows, cols, difficulty)
   }
 }

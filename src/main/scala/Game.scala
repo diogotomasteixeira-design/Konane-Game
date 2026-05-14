@@ -3,7 +3,7 @@ import Types.{Board, Coord2D, Stone}
 import scala.annotation.tailrec
 import scala.collection.parallel.immutable.ParMap
 
-case class Game(board: Board, lstOpenCoords: List[Coord2D], player: Stone, rows: Int, cols: Int) {
+case class Game(board: Board, lstOpenCoords: List[Coord2D], player: Stone, rows: Int, cols: Int, difficulty: Integer) {
 
   def randomMove(rand: MyRandom): (Coord2D, MyRandom) = {
     Game.randomMove(this.lstOpenCoords, rand)
@@ -13,8 +13,8 @@ case class Game(board: Board, lstOpenCoords: List[Coord2D], player: Stone, rows:
     Game.play(this.board, this.player, coordFrom, coordTo, this.lstOpenCoords)
   }
 
-  def playRandomly(r: MyRandom): (Option[Board], MyRandom, List[Coord2D], Option[Coord2D]) = {
-    Game.playRandomly(this.board, r, this.player, this.lstOpenCoords, Game.randomMove)
+  def playRandomly(r: MyRandom): (Option[Board], MyRandom, List[Coord2D],Option[Coord2D],Option[Coord2D]) = {
+    Game.playRandomly(this.board, r, this.player, this.lstOpenCoords, this.difficulty, Game.randomMove)
   }
 }
 
@@ -94,13 +94,13 @@ object Game {
   }
 
   @tailrec
-  def playRandomly(board: Board, r: MyRandom, player: Stone, lstOpenCoords: List[Coord2D], f: (List[Coord2D], MyRandom) => (Coord2D, MyRandom)): (Option[Board], MyRandom, List[Coord2D], Option[Coord2D]) = {
+  def playRandomly(board: Board, r: MyRandom, player: Stone, lstOpenCoords: List[Coord2D], difficulty: Integer, f: (List[Coord2D], MyRandom) => (Coord2D, MyRandom)): (Option[Board], MyRandom, List[Coord2D], Option[Coord2D], Option[Coord2D]) = {
     val (coordTo,newRandom) = f(lstOpenCoords, r)
     findPieceForMove(board, player, coordTo, lstOpenCoords) match {
       case Some(coordFrom) =>
         val (newBoard, newLstOpenCoords, _) = play(board, player, coordFrom, coordTo, lstOpenCoords)
-        (newBoard, newRandom, newLstOpenCoords, Some(coordTo))
-      case None => playRandomly(board, newRandom, player, lstOpenCoords, f)  
+        (newBoard, newRandom, newLstOpenCoords, Some(coordFrom), Some(coordTo))
+      case None => playRandomly(board, newRandom, player, lstOpenCoords, difficulty, f)  
     }
   }
 
@@ -117,5 +117,44 @@ object Game {
   }
   def canKeepJumping(board: Board, player: Stone, currentCoord: Coord2D, lstOpenCoords: List[Coord2D]): Boolean = {
     validMoveExists(board, player, currentCoord, lstOpenCoords)
+  }
+
+  def maxJumpsFrom(board: Board, player: Stone, from: Coord2D, lstOpenCoords: List[Coord2D]): Integer = {
+    val possibleJump = List(
+      (from._1 -2, from._2),(from._1 +2, from._2),(from._1, from._2 -2),(from._1, from._2 +2)
+    )
+    
+    val validJumps = possibleJump.filter(to => validMove(board, player, from, to, lstOpenCoords))
+    if (validJumps.isEmpty) 0
+    else {
+      validJumps.map { to =>
+        val(optBoard, nextOpenCoords, _) = play(board, player, from, to, lstOpenCoords)
+        1 + maxJumpsFrom(optBoard.get, player, to, nextOpenCoords)
+      }.max
+    }
+  }
+  
+  def playMaxJumps (board: Board, player: Stone, lstOpenCoords: List[Coord2D]): (Option[Board], List[Coord2D], Option[Coord2D],Option[Coord2D]) = {
+    val movablePieces = board.filter { case (coord, stone) =>
+      stone == player && validMoveExists(board, player, coord, lstOpenCoords)
+    }.keys.toList
+
+    if (movablePieces.isEmpty) (None, lstOpenCoords, None, None)
+    else {
+      val bestPiece = movablePieces.maxBy(p => maxJumpsFrom(board, player, p, lstOpenCoords))
+
+      val destinations = List(
+        (bestPiece._1 - 2, bestPiece._2), (bestPiece._1 + 2, bestPiece._2),
+        (bestPiece._1, bestPiece._2 - 2), (bestPiece._1, bestPiece._2 + 2)
+      ).filter(to => validMove(board, player, bestPiece, to, lstOpenCoords))
+
+      val bestDest = destinations.maxBy(to => {
+        val (newBoard, newList, _) = play(board, player, bestPiece, to, lstOpenCoords)
+        maxJumpsFrom(newBoard.get, player, to, newList)
+      })
+
+      val (newBoard, newOpen, _) = play(board, player, bestPiece, bestDest, lstOpenCoords)
+      (newBoard, newOpen, Some(bestPiece) ,Some(bestDest))
+    }
   }
 }
