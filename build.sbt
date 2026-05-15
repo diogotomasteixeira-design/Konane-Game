@@ -7,3 +7,7 @@ lazy val root = (project in file("."))
     name := "Jogo Konane",
     libraryDependencies += "org.scala-lang.modules" %% "scala-parallel-collections" % "1.2.0"
   )
+
+libraryDependencies += "org.openjfx" % "javafx-base" % "26"
+libraryDependencies += "org.openjfx" % "javafx-controls" % "26"
+libraryDependencies += "org.openjfx" % "javafx-fxml" % "26"

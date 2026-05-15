@@ -1,7 +1,10 @@
-import Types.{Board, Coord2D, Stone}
-import Stone.{Black, White}
-import scala.io.StdIn.readLine
+package konane
+
+import konane.Types.Stone.{Black, White}
+import konane.Types.{Board, Coord2D, Stone}
+
 import scala.annotation.tailrec
+import scala.io.StdIn.readLine
 
 object Main {
 

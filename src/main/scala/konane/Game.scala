@@ -1,4 +1,6 @@
-import Types.{Board, Coord2D, Stone}
+package konane
+
+import konane.Types.{Board, Coord2D, Stone}
 
 import scala.annotation.tailrec
 import scala.collection.parallel.immutable.ParMap

@@ -1,5 +1,7 @@
-import Types.{Board, Coord2D, Stone}
-import Stone.{Black, White}
+package konane
+
+import konane.Types.Stone.{Black, White}
+import konane.Types.{Board, Coord2D, Stone}
 
 import java.io.*
 import scala.collection.parallel.immutable.ParMap

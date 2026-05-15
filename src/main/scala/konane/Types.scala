@@ -1,3 +1,5 @@
+package konane
+
 import scala.collection.parallel.immutable.ParMap
 
 object Types {
