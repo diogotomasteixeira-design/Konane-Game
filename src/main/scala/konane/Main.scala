@@ -1,5 +1,6 @@
 package konane
 
+import javafx.application.Application
 import konane.Types.Stone.{Black, White}
 import konane.Types.{Board, Coord2D, Stone}
 
@@ -11,16 +12,30 @@ object Main {
   def main(args: Array[String]): Unit = {
     println("=== Bem-vindo ao Kōnane ===")
     println("Tu jogas com as Pretas (B). O computador joga com as Brancas (W).")
-    println()
+    println("Escolha o modo de jogo:")
+    println("  1 - Modo Terminal (TUI)")
+    println("  2 - Modo Gráfico (GUI)")
+    val modo = readLine("Opção: ").trim
 
-    val (rows, cols, limitSeconds, difficulty) = TUI.mainMenu()
-    val (board, lstOpenCoords) = Game.initBoard(rows, cols)
-    val initialGame = Game(board, lstOpenCoords, Black, rows, cols, difficulty)
-    val rand = MyRandom.create()
-    val history = Nil
+    modo match {
+      case "2" =>
+        println("\nA iniciar a Interface Gráfica (JavaFX)...")
+        Application.launch(classOf[GUI], args: _*)
 
-    TUI.printGameState(initialGame)
-    gameLoop(initialGame, rand, history, limitSeconds, difficulty)
+      case _ =>
+        // Modo por omissão ou caso escolha 1
+        println("\nA iniciar o modo de Terminal...")
+        println("Tu jogas com as Pretas (B). O computador joga com as Brancas (W).\n")
+
+        val (rows, cols, limitSeconds, difficulty) = TUI.mainMenu()
+        val (board, lstOpenCoords) = Game.initBoard(rows, cols)
+        val initialGame = Game(board, lstOpenCoords, Black, rows, cols, difficulty)
+        val rand = MyRandom.create()
+        val history = Nil
+
+        TUI.printGameState(initialGame)
+        gameLoop(initialGame, rand, history, limitSeconds, difficulty)
+    }
   }
 
   @tailrec
